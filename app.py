@@ -3,75 +3,80 @@ import sys
 import os
 from bs4 import BeautifulSoup
 from pathlib import Path
+import chalk
+from config import config
 
-def writeFile (filepath: str, filelink, iteration):
-        if "/" in filelink.get('href'):
-            filename = filelink.get("href").split('/')[-1].split('-')[0]
-        else:
-            filename = filelink
-        print(iteration, filename)
-        if ".jpg" in filename:
-            print('quit jpg')
+# Definitions for filetypes for naming
+
+
+def fileType(link):
+    filetype = link.category.get("term")
+    if filetype == "edition":
+        return str(link.find("cpi:editiondate").text + "-" + link.find("dcterms:identifier").text.split("-")[0])
+    if filetype == "puzzle":
+        return str(link.find("cpi:puzzletype").text)
+    elif filetype == "section":
+        return str(link.title.text)
+    elif filetype == "slot":
+        return str(link.find("cpi:times_templateid").text + "-" + link.find("dcterms:identifier").text.split("-")[0])
+    elif filetype == "book":
+        return str(link.title.text)
+    elif filetype == "images":
+        return str(link.find("cpi:chpid").text)
+    elif filetype == "article":
+        return str(link.find("cpi:slug").text + "-" + link.find("dcterms:identifier").text.split("-")[0][0])
+    else:
+        return str(link.find("dcterms:identifier").text.split("-")[0])
+
+# Main function
+
+
+def writeFile(filepath: str, filelink: str, iteration: int, logLevel: int):
+
+    # Fetch the link from HTTP, return as XML blob
+    data = requests.get(filelink).text
+    # Soupify XML blob
+    soup = BeautifulSoup(data, features="html.parser")
+
+    # Run fileType function to determine naming convention
+    filetype = fileType(soup)
+
+    # Build path from current path plus filetype
+    path = filepath + "/" + filetype
+
+    # Check depth limit
+    depth = len(filepath.split("/"))
+    if depth > config["maxDepth"]:
+        return
+    # Tell the console where we are
+    if logLevel > 0:
+        print(chalk.bold("Depth/Iteration: ") +
+              chalk.blue(depth) + "/" + chalk.cyan(iteration))
+
+    # Write the files
+    if not os.path.exists(path + "/" + filetype + ".xml"):
+        os.makedirs(path)
+        f = open(path + "/" + filetype + ".xml", "w+")
+        f.write(soup.prettify())
+        f.close()
+    # Get the next set of links
+    for link in soup.find_all("link"):
+        # Quits if file is a binary or would result in a image save
+        if (link.get("cpi:qualifier") == "binary"):
             return
-        filedata = BeautifulSoup(requests.get(filelink.get('href')).text, features="html.parser")
-        filetype = filedata.category.get('term')
-        path = filepath + "/" + filename
-        depth = filepath.split("/")
-        if len(depth) < 7:
-            if not os.path.exists(filepath + "/" + filetype + "-" + filename + ".xml"):
-                os.makedirs(path)
-                f = open(filepath + "/" + filetype + "-" + filename + ".xml", "w+")
-                f.write(filedata.prettify())
-                f.close()
-            for link in filedata.find_all('link'):
-                # if iteration == 5:
-                #     return
-                # else:
-                if (link.get("cpi:qualifier") != "binary"):
-                    if (".png" not in link.get("href")):
-                        iteration = iteration + 1
-                        writeFile(path, link, iteration)
-                    else:
-                        return
-                else:
-                    print("binary")
-                    return
-        else:
-            print("depth limit reached")
-            print(depth)
-            print(path)
+        if ".png" in link.get("href"):
             return
-
-firstFile = BeautifulSoup(requests.get(sys.argv[1]).text, features="html.parser").link
-originalPath = "output/" + sys.argv[1].split("/")[-1].split("&")[0]
-
-# # print("Firstfile", firstFile.link.get('href'))
-# # print("first",firstFile.link.get('href'))
+        if ".jpg" in soup.link.get("href"):
+            return
+        iteration = iteration + 1
+        writeFile(path, link.get("href"), iteration, logLevel)
 
 
-# if Path(path).exists() == False:
-#     os.makedirs(path)
-
-writeFile(originalPath, firstFile, 0)
-
-
-
-# while firstFile.find_all('link'):
-#     i = i + 1
-#     print("Level ", i)
-#     if i == 6:
-#         break
-#     for link in firstFile.find_all('link'):
-#         print("New link")
-#         filename = link.get("href").split('/')[-1]
-#         path = path + "/" + filename
-#         os.makedirs(path)
-#         f = open(path + "/" + filename + ".xml", "w+")
-#         f.write(BeautifulSoup(requests.get(link.get('href')).text, features="html.parser").prettify())
-#         f.close()
-
-# # print("Writing")
-# f = open(sys.argv[1].split("/")[-1] + ".xml", "w+")
-# f.write(soup.prettify())
-# f.close()
-# print("Done")
+# Print out config
+print(chalk.red("######"))
+print(chalk.bold("Methode crawler"))
+print(chalk.red("######"))
+print(chalk.green("Depth: ") + chalk.white(config["maxDepth"]))
+print("Logging level: " + str(config["logLevel"]))
+# Run function
+writeFile("output/", sys.argv[1], 0, config["logLevel"])
