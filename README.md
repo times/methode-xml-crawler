@@ -4,7 +4,7 @@ This parser reads the methode XML given as an argument from an edition on the hu
 
 Components in this case are related articles, images, interactive components etc.
 
-It is important not to run a high depth or you may end up finding related articles that are realted to one another, and cause an infinite loop. The program will stop at about 30 levels because of the file length (on MacOS).
+It is important not to run a high depth or you may end up finding related articles that are related to one another, and cause an infinite loop. The program will stop at about 30 levels because of the file length (on MacOS).
 
 ## Running
 
