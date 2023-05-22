@@ -7,7 +7,7 @@ authors = ["Matt Taylor <matt.taylor@thetimes.co.uk>"]
 [tool.poetry.dependencies]
 python = "^3.7"
 Path = "^13.1.0"
-requests = "^2.22.0"
+requests = "^2.31.0"
 BeautifulSoup4 = "^4.8.2"
 pychalk = "^2.0.1"
 
